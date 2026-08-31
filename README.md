@@ -26,6 +26,13 @@ i pisze o tym w panelu. Wymuszenie: `?skala=1`.
 ramek wychodzi z modułu konstrukcyjnego 100 × 125 cm. Inna ścianka to inny plik,
 nic nie trzeba przestawiać w kodzie.
 
+## Zamówienie stoiska
+
+Panel ma przycisk **„Zamów stoisko"** prowadzący na
+[szybkiestoisko.pl](https://szybkiestoisko.pl/) — otwiera się w nowej karcie.
+Adres zmienia się w `index.html`, podpis przycisku w `teksty.js`
+(klucze `zamow` i `zamowGdzie`, trzy języki).
+
 ## Szablony dla grafika
 
 `szablon-planszy.pdf` i `szablon-lady.pdf` to podkłady w skali 1:1 — strona

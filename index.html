@@ -105,6 +105,10 @@
     background: var(--night); color: #fff;
   }
   .przycisk:hover { background: #2a3252; }
+  .przycisk.akcja { margin-top: 14px; width: 100%; background: var(--akcent); color: #fff;
+                    justify-content: space-between; }
+  .przycisk.akcja:hover { filter: brightness(1.12); }
+  .format.jasny { color: rgba(255, 255, 255, .75); }
   .przycisk.cichy { background: transparent; color: var(--rock); border: 1px solid var(--stone);
                     font-weight: 700; justify-content: space-between; }
   .przycisk.cichy:hover { color: var(--night); border-color: var(--rock); }
@@ -183,6 +187,11 @@
   </div>
   <input type="file" id="wybor" accept="application/pdf">
   <input type="file" id="wyborLady" accept="application/pdf">
+
+  <a class="przycisk akcja" href="https://szybkiestoisko.pl/" target="_blank" rel="noopener">
+    <span data-t="zamow">Zamów stoisko</span>
+    <span class="format jasny" data-t="zamowGdzie">szybkiestoisko.pl</span>
+  </a>
 
   <div class="akcje">
     <button class="przycisk cichy" id="przywroc">
