@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KongresERP — stoisko targowe, wizualizacja 3D</title>
+<meta name="description" content="Wizualizacja 3D stoiska KongresERP. Ścianka renderuje się z pliku produkcyjnego planszy.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap" rel="stylesheet">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.184.0/build/three.module.js",
+    "three/addons/controls/OrbitControls.js": "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js",
+    "three/addons/exporters/OBJExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js",
+    "three/addons/exporters/GLTFExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js"
+  },
+  "integrity": {
+    "https://unpkg.com/three@0.184.0/build/three.module.js": "sha384-8FCZ1eVO6it4+pbec2aDtnTrwjWXZLJRC+MAGCIPDgsYnUrl/E0A2YlF8ioMKI/J",
+    "https://unpkg.com/three@0.184.0/build/three.core.js": "sha384-dw2ooPewaEIrAgl6oFDBmmBWCE9oW9LxRGcfwZ0hLvEprzo202wXl7vCYHRlSnOT",
+    "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js": "sha384-4rziNxOBZKQ69i+w+f89KJ55TCYquwchVbByQwmaOeIOXdOU2PLDn3kOfXHwIJC9",
+    "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js": "sha384-nbwtoZENJD3Vq+ACK0CuGQdPMuDWHkamC2KJD70EV5nfg6jQjfppKOea07YJN+N3",
+    "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js": "sha384-VofkvpG6HERhFCYbsUOHeNXBCqID2nfqkQqnVzE1jc/oPcz+qJ13ADdXH08hE+cQ"
+  }
+}
+</script>
+<style>
+  :root {
+    --night: #101b3a;
+    --akcent: #0026ff;
+    --stone: #e9eaed;
+    --rock: #60687a;
+    --tlo: #f3f4f6;
+  }
+  html, body { margin: 0; height: 100%; background: var(--tlo); color: var(--night);
+               font-family: "Nunito Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+
+  three-d-stage:not(:defined) { visibility: hidden; }
+  three-d-stage { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  /* ---------------------------------------------------------------- panel */
+  .panel {
+    position: absolute; left: 24px; top: 24px; z-index: 5;
+    width: min(340px, calc(100% - 48px));
+    max-height: calc(100% - 48px); overflow: auto;
+    background: #fff; border: 1px solid var(--stone); border-radius: 14px;
+    box-shadow: 0 20px 44px rgba(27, 33, 58, .13);
+    padding: 22px 24px 20px;
+  }
+  .gora { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .panel img.logo { width: 118px; display: block; }
+  .jezyki { display: flex; gap: 3px; flex: none; }
+  .jezyki button { border: 0; background: transparent; cursor: pointer; padding: 3px 6px;
+                   border-radius: 5px; color: var(--rock);
+                   font: 800 10px/1 "Nunito Sans", system-ui, sans-serif; letter-spacing: .08em; }
+  .jezyki button:hover { color: var(--night); background: var(--stone); }
+  .jezyki button[aria-current="true"] { background: var(--night); color: #fff; }
+  .eyebrow { margin-top: 14px; font-size: 9px; font-weight: 800; letter-spacing: .16em;
+             text-transform: uppercase; color: var(--rock); }
+  h1 { margin: 7px 0 0; font-size: 21px; line-height: 1.15; font-weight: 800; letter-spacing: -.01em; }
+
+  .dane { margin: 16px 0 0; border-top: 1px solid var(--stone); }
+  .dane div { display: flex; justify-content: space-between; gap: 14px;
+              padding: 7px 0; border-bottom: 1px solid var(--stone); font-size: 12px; line-height: 1.45; }
+  .dane dt, .dane span:first-child { color: var(--rock); }
+  .dane b { font-weight: 800; text-align: right; }
+
+  .wyposazenie { margin-top: 14px; }
+  .etykieta { font-size: 9px; font-weight: 800; letter-spacing: .16em;
+              text-transform: uppercase; color: var(--rock); }
+  .chipy { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { border: 1px solid var(--stone); border-radius: 999px; padding: 6px 12px 6px 10px;
+          background: #fff; cursor: pointer; color: var(--rock);
+          font: 700 11.5px/1 "Nunito Sans", system-ui, sans-serif;
+          display: inline-flex; align-items: center; gap: 7px; }
+  .chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%;
+                  background: var(--stone); }
+  .chip[aria-pressed="true"] { color: var(--night); border-color: #c9ccd4; }
+  .chip[aria-pressed="true"]::before { background: var(--akcent); }
+  .chip:hover { border-color: var(--rock); }
+
+  .wskazowka { margin: 12px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--rock); }
+  .plik { margin-top: 14px; font-size: 11.5px; line-height: 1.5; color: var(--rock); }
+  .plik b { font-weight: 800; color: var(--night); }
+  .plik.blad { color: #a8322d; }
+
+  /* ---------------------------------------------------------------- pliki */
+  .pliki { margin-top: 16px; border-top: 1px solid var(--stone); padding-top: 13px; }
+  .rzad { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center;
+          margin-top: 8px; font-size: 12px; font-weight: 700; }
+  .maly { border: 1px solid var(--stone); border-radius: 7px; background: #fff; cursor: pointer;
+          padding: 7px 11px; color: var(--night); text-decoration: none;
+          font: 800 11px/1 "Nunito Sans", system-ui, sans-serif; }
+  .maly:hover { border-color: var(--rock); }
+  .maly.mocny { background: var(--night); color: #fff; border-color: var(--night); }
+  .maly.mocny:hover { background: #2a3252; }
+
+  /* ---------------------------------------------------------------- akcje */
+  .akcje { margin-top: 16px; display: flex; flex-direction: column; gap: 9px; }
+  .przycisk {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    border: 0; border-radius: 9px; padding: 11px 14px; cursor: pointer;
+    font: 800 12px/1 "Nunito Sans", system-ui, sans-serif; letter-spacing: .02em;
+    background: var(--night); color: #fff;
+  }
+  .przycisk:hover { background: #2a3252; }
+  .przycisk.cichy { background: transparent; color: var(--rock); border: 1px solid var(--stone);
+                    font-weight: 700; justify-content: space-between; }
+  .przycisk.cichy:hover { color: var(--night); border-color: var(--rock); }
+  .przycisk .strzalka { transition: transform .15s ease; font-weight: 400; }
+  .panel.otwarty .przycisk .strzalka { transform: rotate(90deg); }
+  input[type="file"] { display: none; }
+  a.przycisk { text-decoration: none; }
+  .przycisk .format { font-weight: 400; font-size: 10.5px; color: var(--rock); letter-spacing: 0; }
+  .instrukcja a { color: var(--night); font-weight: 800; text-decoration: underline;
+                  text-decoration-color: var(--akcent); text-underline-offset: 2px; }
+
+  /* ---------------------------------------------------------------- instrukcja */
+  .instrukcja { display: none; margin-top: 4px; border-top: 1px solid var(--stone); padding-top: 14px; }
+  .panel.otwarty .instrukcja { display: block; }
+  .instrukcja ol { margin: 0; padding: 0; list-style: none; counter-reset: krok; }
+  .instrukcja li { position: relative; counter-increment: krok;
+                   padding: 0 0 13px 30px; font-size: 12px; line-height: 1.5; color: var(--rock); }
+  .instrukcja li::before {
+    content: counter(krok); position: absolute; left: 0; top: 0;
+    width: 19px; height: 19px; border-radius: 50%; background: var(--akcent); color: var(--night);
+    font-size: 10px; font-weight: 800; display: grid; place-items: center;
+  }
+  .instrukcja li b { display: block; font-weight: 800; color: var(--night); margin-bottom: 2px; }
+  .instrukcja code { font: 700 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+                     background: var(--stone); padding: 2px 5px; border-radius: 4px; color: var(--night); }
+
+  /* ---------------------------------------------------------------- upuszczanie */
+  .zrzut { position: absolute; inset: 0; z-index: 6; display: none; place-items: center;
+           background: rgba(27, 33, 58, .86); color: #fff; }
+  body.przeciaga .zrzut { display: grid; }
+  .zrzut div { border: 2px dashed rgba(255, 255, 255, .5); border-radius: 16px;
+               padding: 34px 44px; text-align: center; }
+  .zrzut strong { display: block; font-size: 17px; font-weight: 800; }
+  .zrzut span { display: block; margin-top: 7px; font-size: 12.5px; color: rgba(255, 255, 255, .72); }
+
+  @media (max-width: 720px) {
+    .panel { left: 12px; right: 12px; top: 12px; width: auto; padding: 18px 18px 16px; }
+  }
+</style>
+</head>
+<body>
+<three-d-stage name="kongreserp_stoisko_3d" background="#f3f4f6" autorotate></three-d-stage>
+
+<section class="panel" id="panel">
+  <div class="gora">
+    <img class="logo" src="assets/kongreserp-logo.webp" alt="KongresERP">
+    <div class="jezyki" id="jezyki"></div>
+  </div>
+  <div class="eyebrow" data-t="nadtytul">Stoisko targowe · wizualizacja 3D</div>
+  <h1 id="tytul">Ścianka z planszy produkcyjnej</h1>
+
+  <div class="dane" id="dane"></div>
+  <div class="wyposazenie">
+    <span class="etykieta" data-t="wyposazenie">Wyposażenie</span>
+    <div class="chipy">
+      <button class="chip" data-mebel="lada" aria-pressed="true" data-t="chipLada">Lada</button>
+      <button class="chip" data-mebel="stolik" aria-pressed="true" data-t="chipStolik">Stolik</button>
+      <button class="chip" data-mebel="hokery" aria-pressed="true" data-t="chipHokery">Hokery</button>
+    </div>
+  </div>
+  <p class="wskazowka" data-t="wskazowka">Meble przestawisz wskaźnikiem — złap ladę, stolik albo hoker i przeciągnij po podłodze stoiska.</p>
+  <p class="plik" id="plik" data-t="wczytywanie">Wczytuję planszę…</p>
+
+  <div class="pliki">
+    <div class="etykieta" data-t="pliki">Pliki</div>
+    <div class="rzad">
+      <span data-t="plikScianka">Ścianka</span>
+      <button class="maly mocny" id="wczytaj" data-t="wczytajPdf">Wczytaj PDF</button>
+      <a class="maly" href="szablon-planszy.pdf" download data-t="szablon">Szablon</a>
+    </div>
+    <div class="rzad">
+      <span data-t="plikLada">Lada</span>
+      <button class="maly mocny" id="wczytajLade" data-t="wczytajPdf">Wczytaj PDF</button>
+      <a class="maly" href="szablon-lady.pdf" download data-t="szablon">Szablon</a>
+    </div>
+  </div>
+  <input type="file" id="wybor" accept="application/pdf">
+  <input type="file" id="wyborLady" accept="application/pdf">
+
+  <div class="akcje">
+    <button class="przycisk cichy" id="przywroc">
+      <span data-t="przywroc">Ustaw meble od nowa</span> <span class="format" data-t="przywrocFormat">lada · stolik · hokery</span>
+    </button>
+    <button class="przycisk cichy" id="przelacznik" aria-expanded="false">
+      <span data-t="instrukcjaTytul">Jak przygotować planszę</span> <span class="strzalka">›</span>
+    </button>
+  </div>
+
+  <div class="instrukcja" id="instrukcja">
+    <ol>
+      <li><b data-t="krok1">Weź szablon</b><a href="szablon-planszy.pdf" download
+        data-t="krok1a">Arkusz 1:1</a><span data-t="krok1b"> z ramkami, szczelinami profili,
+        strefami bezpiecznymi i linią wzroku. Grafik projektuje na nim jak na podkładzie.
+        Zasady są wypisane na samym szablonie.</span></li>
+      <li><b data-t="krok2">Odbierz plik</b><span data-t="krok2t">Jeden PDF 3060 × 2560 mm —
+        ścianka 300 × 250 cm plus 30 mm spadu. Bez linii szablonu, nic w szczelinach.</span></li>
+      <li><b data-t="krok3">Sprawdź tutaj</b><span data-t="krok3t">Przeciągnij PDF na stronę albo
+        kliknij „Zobacz własną planszę". Podgląd zostaje w Twojej przeglądarce — nikt inny go nie
+        widzi.</span></li>
+      <li><b data-t="krok4">Opublikuj</b><span data-t="krok4a">Gdy plansza jest zaakceptowana,
+        wgraj ją do repozytorium strony jako </span><code>plansza.pdf</code><span
+        data-t="krok4b">. Od tej chwili widzą ją wszyscy.</span></li>
+    </ol>
+  </div>
+</section>
+
+<div class="zrzut">
+  <div>
+    <strong data-t="zrzutTytul">Upuść PDF planszy</strong>
+    <span data-t="zrzutOpis">Podgląd tylko w Twojej przeglądarce — plik nigdzie nie jest wysyłany</span>
+  </div>
+</div>
+
+<script src="three-d-stage.js"></script>
+<script type="module" src="stoisko.js"></script>
+</body>
+</html>

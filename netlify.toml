@@ -1,0 +1,15 @@
+# Strona statyczna — nic się nie buduje, publikujemy korzeń repozytorium.
+[build]
+  publish = "."
+
+# Plansza jest tym, co się zmienia; nie wolno jej trzymać w pamięci podręcznej.
+[[headers]]
+  for = "/plansza.pdf"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# pdf.js jest przypięty wersją, więc może leżeć w cache na rok.
+[[headers]]
+  for = "/vendor/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
