@@ -33,6 +33,37 @@ Panel ma przycisk **„Zamów stoisko"** prowadzący na
 Adres zmienia się w `index.html`, podpis przycisku w `teksty.js`
 (klucze `zamow` i `zamowGdzie`, trzy języki).
 
+## Osadzenie na innej stronie
+
+Strona działa w `<iframe>` bez żadnych ustawień — Netlify nie wysyła nagłówków
+blokujących ramkę:
+
+```html
+<iframe src="https://<adres-z-netlify>/" title="Stoisko 3D"
+        style="width:100%;height:640px;border:0;border-radius:12px"
+        loading="lazy" allowfullscreen></iframe>
+```
+
+W ramce strona sama przechodzi w **tryb osadzony**: znikają narzędzia do
+podmiany plików i instrukcja dla grafika, zostaje stoisko, wymiary, przełącznik
+wyposażenia, języki i przycisk zamówienia. Wymuszenie: `?osadzone=1` (tryb
+osadzony poza ramką) albo `?osadzone=0` (pełny panel w ramce).
+
+Przydatne parametry przy osadzaniu: `?lang=en` — wersja językowa,
+`?plik=inna.pdf` i `?lada=inna.pdf` — konkretna grafika dla danej podstrony.
+
+Jeśli chcesz ograniczyć, kto może osadzać stronę, dopisz w `netlify.toml`:
+
+```toml
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "frame-ancestors 'self' https://kongreserp.pl https://*.kongreserp.pl"
+```
+
+Bez tego nagłówka stronę może osadzić każdy — co przy publicznej wizualizacji
+zwykle jest w porządku.
+
 ## Szablony dla grafika
 
 `szablon-planszy.pdf` i `szablon-lady.pdf` to podkłady w skali 1:1 — strona

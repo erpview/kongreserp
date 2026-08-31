@@ -144,6 +144,20 @@
   .zrzut strong { display: block; font-size: 17px; font-weight: 800; }
   .zrzut span { display: block; margin-top: 7px; font-size: 12.5px; color: rgba(255, 255, 255, .72); }
 
+  /* ---------------------------------------------------------------- osadzenie */
+  /* W ramce na cudzej stronie liczy się stoisko i wyjście do zamówienia.
+     Narzędzia do podmiany plików zostają w wersji samodzielnej. */
+  body.osadzone .pliki,
+  body.osadzone .plik,
+  body.osadzone .instrukcja,
+  body.osadzone #przelacznik { display: none !important; }
+  /* w ramce panel bywa wyższy niż okno — zbieramy go ciaśniej */
+  body.osadzone .panel { padding: 16px 18px 14px; }
+  body.osadzone img.logo { width: 96px; }
+  body.osadzone .dane div { padding: 5px 0; }
+  body.osadzone .eyebrow { margin-top: 10px; }
+  body.osadzone h1 { font-size: 18px; }
+
   @media (max-width: 720px) {
     .panel { left: 12px; right: 12px; top: 12px; width: auto; padding: 18px 18px 16px; }
   }

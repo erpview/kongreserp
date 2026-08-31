@@ -49,6 +49,14 @@ const ARKUSZ_WZORCOWY = 3060;   // mm — ścianka 300 cm ze spadem, punkt odnie
 const ARKUSZ_LADY = 2060;       // mm — rozwinięcie lady 100 × 50 × 100 ze spadem
 const NAJMNIEJSZA_SCIANKA = 1000;  // mm — poniżej tego żadna ścianka nie istnieje
 
+/* Strona osadzona w ramce pokazuje samo stoisko i przycisk zamówienia —
+   wczytywanie własnych plików i instrukcja dla grafika zostają w wersji
+   samodzielnej. Rozpoznajemy to same z siebie; `?osadzone=0` wymusza pełny
+   panel także w ramce, `?osadzone=1` bez ramki. */
+const osadzone = param.get('osadzone') === '1'
+  || (param.get('osadzone') !== '0' && window.self !== window.top);
+document.body.classList.toggle('osadzone', osadzone);
+
 function liczba(wartosc, domyslna) {
   const x = parseFloat(wartosc);
   return Number.isFinite(x) ? x : domyslna;
