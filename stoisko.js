@@ -531,10 +531,14 @@ function stoiskoSrebrne(grafikaRollupa) {
   grupa.name = 'stoisko_kongreserp_srebrne';
   grupa.add(box('podloga', W, 0.02, D, mat.stone, 0, 0.01, 0));
 
+  // Układ wyjściowy: rollup przy lewej krawędzi, tyłem do alejki; stolik
+  // w prawym narożniku, wysunięty do przodu. Na 150 × 70 cm oba nie zmieszczą
+  // się obok siebie w jednej linii, więc stolik stoi przed rollupem — tak jak
+  // stoi naprawdę.
   const rollup = rollupMesh(grafikaRollupa, SREBRNE.rollupSzer, SREBRNE.rollupWys,
-                            -W / 2 + SREBRNE.rollupSzer / 2 + 0.1, -D / 2 + 0.16);
+                            -W / 2 + SREBRNE.rollupSzer / 2, -D / 2 + 0.14);
   const stolik = stolikKoktajlowy('stolik', SREBRNE.kolorStolika,
-                                  W / 2 - 0.34, D / 2 - 0.34);
+                                  W / 2 - 0.30, D / 2 - 0.30);
   grupa.add(rollup, stolik);
 
   return {
@@ -657,6 +661,15 @@ function dociagnijGlebie() {
   kamera.near = Math.max(0.2, dystans / 20);
   kamera.far = dystans * 6;
   kamera.updateProjectionMatrix();
+}
+
+/** Ustawia kamerę na zadany punkt widzenia — do kadru startowego wariantu. */
+function ustawKadr(x, y, z, celX, celY, celZ) {
+  const kamera = stage.camera, sterowanie = stage.controls;
+  if (!kamera || !sterowanie) return;
+  kamera.position.set(x, y, z);
+  sterowanie.target.set(celX, celY, celZ);
+  sterowanie.update();
 }
 
 /* ---------------------------------------------------------------- strona */
@@ -815,6 +828,10 @@ async function pokazSrebrne() {
   model = stoiskoSrebrne(grafikaRollupa);
   stage.setObject(model.grupa);
   dociagnijGlebie();
+  // Kadr startowy z prawej strony: stolik stoi przed rollupem, więc widok
+  // wprost zasłaniałby grafikę. Scena kadruje sama, ale nie wie, co tu jest
+  // ważniejsze.
+  ustawKadr(2.45, 1.85, 3.25, 0.05, 1.0, 0);
   przesuwanie.podepnij(model);
   zastosujWidocznosc();
   ostatni = null;
