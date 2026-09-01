@@ -72,6 +72,11 @@ wydruku: ramki i szczeliny profili, strefy bezpieczne, linię wzroku 160 cm,
 pole zasłonięte ladą, a przy ladzie linie zagięcia w narożach oraz pasy zakryte
 przez cokół i blat.
 
+Obok każdego szablonu leży **podgląd PNG** (przycisk „PNG") — ten sam arkusz
+w pikselach, przycięty do pola netto, więc proporcje obrazu są proporcjami
+ścianki: 2000 × 1666 px dla ścianki, 2000 × 1000 px dla lady. Do makiety
+i prezentacji; plikiem produkcyjnym pozostaje PDF.
+
 Oddawany plik nie może zawierać linii szablonu — to podkład roboczy, nie część
 grafiki.
 
@@ -81,8 +86,9 @@ Wszystkie cztery PDF-y powstają z jednego źródła — wymiarów konstrukcji
 zapisanych w `narzedzia/pliki.py`:
 
 ```bash
-python3 narzedzia/pliki.py                # wszystkie cztery
-python3 narzedzia/pliki.py szablon-lady   # tylko wybrany
+python3 narzedzia/pliki.py                     # wszystkie cztery
+python3 narzedzia/pliki.py szablon-lady        # tylko wybrany
+python3 narzedzia/pliki.py --png 2000          # dodatkowo podglądy PNG
 ```
 
 Zmiana konstrukcji (inna ścianka, inna lada) to zmiana liczb na górze tego

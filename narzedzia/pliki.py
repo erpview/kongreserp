@@ -10,17 +10,20 @@ konstrukcji zapisanych niżej:
     szablon-planszy.pdf  podkład dla grafika: ramki, szczeliny, strefy, linia wzroku
     szablon-lady.pdf     podkład lady: panele, zagięcia, pola zakryte
 
-    python3 narzedzia/pliki.py             # wszystkie cztery
-    python3 narzedzia/pliki.py plansza     # tylko wybrany
+    python3 narzedzia/pliki.py                    # wszystkie cztery
+    python3 narzedzia/pliki.py plansza            # tylko wybrany
+    python3 narzedzia/pliki.py --png 2000         # dodatkowo podglądy PNG
 
 Render idzie przez headless Chrome (`--print-to-pdf`), bo strona i tak renderuje
 PDF-y w przeglądarce — ten sam silnik po obu stronach znaczy, że podgląd wygląda
 jak wydruk. Rozmiar arkusza pilnuje reguła `@page`.
 """
 
+import argparse
 import subprocess
 import sys
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -245,6 +248,56 @@ PLIKI = {
 }
 
 
+@contextmanager
+def bez_spadu():
+    """Na chwilę zeruje spad w obu konstrukcjach.
+
+    Podgląd rastrowy pokazuje pole netto — to, co widać na stoisku. Gdyby
+    zawierał spad, proporcje obrazu przestałyby być proporcjami ścianki
+    i makieta kłamałaby o jej kształcie.
+    """
+    stare = SCIANKA["spad"], LADA["spad"]
+    SCIANKA["spad"], LADA["spad"] = 0, 0
+    try:
+        yield
+    finally:
+        SCIANKA["spad"], LADA["spad"] = stare
+
+
+def zbuduj_png(nazwa: str, szerokosc_px: int) -> tuple[Path, int, int]:
+    """Ten sam arkusz co w PDF, tylko w pikselach i bez spadu.
+
+    Chrome nie schodzi ze skalą zrzutu poniżej 0,5, więc obraz wychodzi
+    większy niż docelowy — sprowadza go potem `sips`, przy okazji pilnując
+    proporcji: podajemy wyłącznie szerokość, wysokość wynika z arkusza.
+    """
+    px_na_mm = 96 / 25.4
+    plik, zrob = PLIKI[nazwa]
+    wynik = KORZEN / f"{Path(plik).stem}-{szerokosc_px}px.png"
+    with bez_spadu():
+        html_tresc = zrob()
+        szer_mm = SCIANKA["szer"] if "planszy" in nazwa or nazwa == "plansza" \
+            else LADA["bok"] * 2 + LADA["front"]
+        wys_mm = SCIANKA["wys"] if "planszy" in nazwa or nazwa == "plansza" else LADA["wys"]
+    with tempfile.TemporaryDirectory() as tmp:
+        html = Path(tmp) / f"{nazwa}.html"
+        html.write_text(html_tresc, encoding="utf-8")
+        skala = max(0.5, szerokosc_px / (szer_mm * px_na_mm))
+        subprocess.run(
+            [CHROME, "--headless", "--disable-gpu", "--no-sandbox",
+             "--allow-file-access-from-files", "--virtual-time-budget=8000", "--hide-scrollbars",
+             f"--window-size={round(szer_mm * px_na_mm)},{round(wys_mm * px_na_mm)}",
+             f"--force-device-scale-factor={skala:.6f}",
+             f"--screenshot={wynik}", html.as_uri()],
+            check=True, capture_output=True,
+        )
+    subprocess.run(["sips", "-s", "format", "png", "-Z", str(szerokosc_px),
+                    str(wynik), "--out", str(wynik)], check=True, capture_output=True)
+    wymiary = subprocess.run(["sips", "-g", "pixelWidth", "-g", "pixelHeight", str(wynik)],
+                             capture_output=True, text=True).stdout.split()
+    return wynik, int(wymiary[-3]), int(wymiary[-1])
+
+
 def zbuduj(nazwa: str) -> Path:
     plik, zrob = PLIKI[nazwa]
     wynik = KORZEN / plik
@@ -261,15 +314,25 @@ def zbuduj(nazwa: str) -> Path:
 
 
 def main() -> int:
-    wybrane = sys.argv[1:] or list(PLIKI)
-    nieznane = [n for n in wybrane if n not in PLIKI]
+    ap = argparse.ArgumentParser(description="Generator plików stoiska KongresERP")
+    ap.add_argument("pliki", nargs="*", default=list(PLIKI),
+                    help=f"co zbudować: {', '.join(PLIKI)} (domyślnie wszystkie)")
+    ap.add_argument("--png", type=int, nargs="?", const=2000, metavar="SZEROKOŚĆ",
+                    help="dodatkowo podgląd PNG o zadanej szerokości w pikselach")
+    args = ap.parse_args()
+
+    nieznane = [n for n in args.pliki if n not in PLIKI]
     if nieznane:
         print(f"Nie znam pliku: {', '.join(nieznane)}. Dostępne: {', '.join(PLIKI)}")
         return 2
-    for nazwa in wybrane:
+
+    for nazwa in args.pliki:
         wynik = zbuduj(nazwa)
-        rozmiar = wynik.stat().st_size / 1024
-        print(f"{wynik.name:22} {rozmiar:7.0f} kB")
+        print(f"{wynik.name:28} {wynik.stat().st_size / 1024:7.0f} kB")
+        if args.png:
+            png, szer_px, wys_px = zbuduj_png(nazwa, args.png)
+            print(f"{png.name:28} {png.stat().st_size / 1024:7.0f} kB · "
+                  f"{szer_px} × {wys_px} px, proporcje zachowane")
     return 0
 
 

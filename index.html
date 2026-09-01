@@ -87,13 +87,15 @@
 
   /* ---------------------------------------------------------------- pliki */
   .pliki { margin-top: 16px; border-top: 1px solid var(--stone); padding-top: 13px; }
-  .rzad { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center;
+  .rzad { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; align-items: center;
           margin-top: 8px; font-size: 12px; font-weight: 700; }
   .maly { border: 1px solid var(--stone); border-radius: 7px; background: #fff; cursor: pointer;
           padding: 7px 11px; color: var(--night); text-decoration: none;
           font: 800 11px/1 "Nunito Sans", system-ui, sans-serif; }
   .maly:hover { border-color: var(--rock); }
   .maly.mocny { background: var(--night); color: #fff; border-color: var(--night); }
+  .maly.cichy { color: var(--rock); font-weight: 700; }
+  .maly.cichy:hover { color: var(--night); }
   .maly.mocny:hover { background: #2a3252; }
 
   /* ---------------------------------------------------------------- akcje */
@@ -192,11 +194,13 @@
       <span data-t="plikScianka">Ścianka</span>
       <button class="maly mocny" id="wczytaj" data-t="wczytajPdf">Wczytaj PDF</button>
       <a class="maly" href="szablon-planszy.pdf" download data-t="szablon">Szablon</a>
+      <a class="maly cichy" href="szablon-planszy-2000px.png" download>PNG</a>
     </div>
     <div class="rzad">
       <span data-t="plikLada">Lada</span>
       <button class="maly mocny" id="wczytajLade" data-t="wczytajPdf">Wczytaj PDF</button>
       <a class="maly" href="szablon-lady.pdf" download data-t="szablon">Szablon</a>
+      <a class="maly cichy" href="szablon-lady-2000px.png" download>PNG</a>
     </div>
   </div>
   <input type="file" id="wybor" accept="application/pdf">
