@@ -28,6 +28,13 @@ const MM = 1 / 1000;                    // milimetr w metrach sceny
 const PT_NA_MM = 25.4 / 72;
 const MODUL = { szer: 1000, wys: 1250 };  // ramka konstrukcji w milimetrach
 
+// Drugi pakiet: mniejsze stoisko przy alejce. Wymiary w metrach sceny.
+const SREBRNE = {
+  szer: 1.5, glebokosc: 0.7,
+  rollupSzer: 1.0, rollupWys: 2.0,
+  kolorStolika: '#3a3f4a',   // ciemnoszary pokrowiec stretch
+};
+
 const param = new URLSearchParams(location.search);
 const USTAWIENIA = {
   plik: param.get('plik') || 'plansza.pdf',
@@ -37,6 +44,7 @@ const USTAWIENIA = {
   wiersze: liczba(param.get('wiersze'), null),
   skala: liczba(param.get('skala'), null),   // wymuszona skala pliku, np. 1 albo 10
   lada: param.get('lada') || 'lada.pdf',
+  rollup: param.get('rollup') || 'rollup.pdf',
   teksturaPx: 3000,
   teksturaLadyPx: 2000,
 };
@@ -326,6 +334,86 @@ function hoker(label, x, z) {
   return g;
 }
 
+/** Stolik koktajlowy w pokrowcu stretch — ten z targowych zdjęć.
+ *
+ *  Pokrowiec obciska blat i rozszerza się ku podłodze, więc sylwetka nie jest
+ *  walcem: rysujemy ją obrotem profilu (talia w połowie wysokości), a nie
+ *  składanką cylindrów. Z trzech metrów widać właśnie ten kształt.
+ */
+function stolikKoktajlowy(nazwa, kolor, x, z) {
+  const WYS = 1.10, PROMIEN = 0.30, HEM = 0.13;
+
+  // Sylwetka pokrowca: blat na pełnej średnicy, mocne przewężenie tuż pod nim
+  // i rozejście ku podłodze. Talia siedzi wysoko — to ona robi ten kształt,
+  // nie samo zwężenie u dołu.
+  const profil = [
+    new THREE.Vector2(0.001, 0),
+    new THREE.Vector2(PROMIEN * 1.00, 0),
+    new THREE.Vector2(PROMIEN * 0.92, WYS * 0.18),
+    new THREE.Vector2(PROMIEN * 0.75, WYS * 0.45),
+    new THREE.Vector2(PROMIEN * 0.62, WYS * 0.70),
+    new THREE.Vector2(PROMIEN * 0.72, WYS * 0.85),
+    new THREE.Vector2(PROMIEN * 0.93, WYS * 0.96),
+    new THREE.Vector2(PROMIEN, WYS - 0.012),
+    new THREE.Vector2(PROMIEN, WYS),
+    new THREE.Vector2(0.001, WYS),
+  ];
+
+  const geometria = new THREE.LatheGeometry(profil, 72);
+
+  // Dół pokrowca nie jest równy: materiał opada na cztery narożniki, a między
+  // nimi podwija się w łuki. Podnosimy więc brzeg funkcją kąta — bryła obrotowa
+  // sama z siebie tego nie zrobi, bo jest symetryczna.
+  const pozycje = geometria.attributes.position;
+  for (let i = 0; i < pozycje.count; i++) {
+    const y = pozycje.getY(i);
+    if (y >= HEM * 2.2) continue;
+    const kat = Math.atan2(pozycje.getZ(i), pozycje.getX(i));
+    const luk = (HEM * (1 - Math.cos(4 * kat))) / 2;      // 0 na nóżkach, HEM między nimi
+    pozycje.setY(i, y + luk * Math.max(0, 1 - y / (HEM * 2.2)));
+  }
+  geometria.computeVertexNormals();
+
+  const material = new THREE.MeshStandardMaterial({
+    color: kolor, roughness: 0.95, metalness: 0, side: THREE.DoubleSide,
+  });
+  material.name = 'pokrowiec_stolika';
+  const mesh = new THREE.Mesh(geometria, material);
+  mesh.name = nazwa + '_pokrowiec';
+  mesh.castShadow = mesh.receiveShadow = true;
+
+  const grupa = new THREE.Group();
+  grupa.name = nazwa;
+  grupa.add(mesh);
+  grupa.position.set(x, 0.02, z);
+  return grupa;
+}
+
+/** Rollup 100 × 200 cm: kaseta, maszt i napięta grafika.
+ *  Grafika zaczyna się nad kasetą, bo dolny pas taśmy chowa się w środku. */
+function rollupMesh(grafika, szer, wys, x, z) {
+  const KASETA_H = 0.09, KASETA_D = 0.24;
+  const grupa = new THREE.Group();
+  grupa.name = 'rollup';
+  grupa.add(box('rollup_kaseta', szer + 0.04, KASETA_H, KASETA_D, mat.steel, 0, KASETA_H / 2, 0));
+  grupa.add(cyl('rollup_maszt', 0.012, 0.012, wys, mat.steel, szer / 2 - 0.03,
+                KASETA_H + wys / 2, -KASETA_D / 4));
+  const plansza = new THREE.Mesh(
+    new THREE.PlaneGeometry(szer, wys),
+    new THREE.MeshStandardMaterial({
+      color: PAPER, roughness: 0.92, metalness: 0, map: grafika || null,
+      side: THREE.DoubleSide,
+    })
+  );
+  plansza.name = 'rollup_wydruk';
+  plansza.material.name = 'wydruk_rollup';
+  plansza.position.set(0, KASETA_H + wys / 2, 0.004);
+  plansza.castShadow = plansza.receiveShadow = true;
+  grupa.add(plansza);
+  grupa.position.set(x, 0.02, z);
+  return grupa;
+}
+
 /** Sześć materiałów bryły korpusu w kolejności three.js: prawa, lewa, góra,
  *  dół, front, tył. Wydruk trafia na trzy ściany widoczne z alejki; blat
  *  i tył zostają białe, bo tam oklejki nie widać. */
@@ -432,6 +520,28 @@ function stoisko(plansza, grafikaLady) {
     meble: [lada, hoker1, hoker2, stolik],
     grupyMebli: { lada: [lada], stolik: [stolik], hokery: [hoker1, hoker2] },
     obszar: { W, D, sciankaZ: wallZ + WALL_T / 2 },
+  };
+}
+
+/** Stoisko srebrne: 150 × 70 cm, rollup zamiast ścianki i stolik koktajlowy
+ *  zamiast lady. Mniejszy pakiet na krótkie rozmowy przy alejce. */
+function stoiskoSrebrne(grafikaRollupa) {
+  const W = SREBRNE.szer, D = SREBRNE.glebokosc;
+  const grupa = new THREE.Group();
+  grupa.name = 'stoisko_kongreserp_srebrne';
+  grupa.add(box('podloga', W, 0.02, D, mat.stone, 0, 0.01, 0));
+
+  const rollup = rollupMesh(grafikaRollupa, SREBRNE.rollupSzer, SREBRNE.rollupWys,
+                            -W / 2 + SREBRNE.rollupSzer / 2 + 0.1, -D / 2 + 0.16);
+  const stolik = stolikKoktajlowy('stolik', SREBRNE.kolorStolika,
+                                  W / 2 - 0.34, D / 2 - 0.34);
+  grupa.add(rollup, stolik);
+
+  return {
+    grupa, kolumny: 1, wiersze: 1,
+    meble: [rollup, stolik],
+    grupyMebli: { rollup: [rollup], stolik: [stolik] },
+    obszar: { W, D, sciankaZ: -D / 2 },
   };
 }
 
@@ -605,7 +715,8 @@ function zastosujJezyk() {
   if (stage.setLabels) {
     stage.setLabels({ note: teksty.sterowanie, obj: teksty.eksportObj, glb: teksty.eksportGlb });
   }
-  if (ostatni) opisz(ostatni.plansza, ostatni.model, ostatni.nazwa);
+  if (wariant === 'srebrny' && model) opiszSrebrne();
+  else if (ostatni) opisz(ostatni.plansza, ostatni.model, ostatni.nazwa);
   else if (ostatniBlad) {
     bladPliku(ostatniBlad.nazwa, ostatniBlad.brakPliku);
     elTytul.textContent = teksty.tytulBezPlanszy;
@@ -649,8 +760,23 @@ const przesuwanie = przygotujPrzesuwanie();
 /* Wyposażenie da się zdjąć ze stoiska — pusta ścianka pokazuje samą planszę,
    a to jej dotyczy większość rozmów o projekcie. Wybór trzyma się między
    planszami, bo przy każdej nowej model powstaje od zera. */
-const widoczne = { lada: true, stolik: true, hokery: true };
+const widoczne = { lada: true, stolik: true, hokery: true, rollup: true };
 let model = null;
+
+/* Dwa pakiety stoiska: złoty (ścianka 300 × 250 i lada) oraz srebrny
+   (rollup 100 × 200 i stolik koktajlowy na 150 × 70 cm). Wybór zostaje
+   w przeglądarce, bo zwykle ogląda się jeden z nich przez całą rozmowę. */
+let wariant = wybierzWariant();
+let grafikaRollupa = null;
+let nazwaRollupa = null;
+
+function wybierzWariant() {
+  const zAdresu = (param.get('wariant') || '').toLowerCase();
+  let zapamietany = null;
+  try { zapamietany = localStorage.getItem('wariant'); } catch (e) {}
+  return ['zloty', 'srebrny'].includes(zAdresu) ? zAdresu
+    : ['zloty', 'srebrny'].includes(zapamietany) ? zapamietany : 'zloty';
+}
 
 function zastosujWidocznosc() {
   if (!model) return;
@@ -668,6 +794,51 @@ async function pokaz(zrodlo, nazwa) {
   przesuwanie.podepnij(model);
   zastosujWidocznosc();
   opisz(plansza, model, nazwa, zrodlo);
+}
+
+function opiszSrebrne() {
+  const teksty = t();
+  const cmv = (m) => (m * 100).toFixed(0);
+  elTytul.textContent = teksty.tytulRollupa(cmv(SREBRNE.rollupSzer), cmv(SREBRNE.rollupWys));
+  elDane.innerHTML = [
+    [teksty.rollup, `${cmv(SREBRNE.rollupSzer)} × ${cmv(SREBRNE.rollupWys)} cm`],
+    [teksty.powierzchnia, `${cmv(SREBRNE.szer)} × ${cmv(SREBRNE.glebokosc)} cm`],
+    [teksty.stolikEtykieta, teksty.stolikWartosc],
+  ].map(([etykieta, wartosc]) => `<div><span>${etykieta}</span><b>${wartosc}</b></div>`).join('');
+  elPlik.classList.remove('blad');
+  elPlik.innerHTML = nazwaRollupa
+    ? teksty.rollupPlik(nazwaRollupa)
+    : teksty.rollupBrak;
+}
+
+async function pokazSrebrne() {
+  model = stoiskoSrebrne(grafikaRollupa);
+  stage.setObject(model.grupa);
+  dociagnijGlebie();
+  przesuwanie.podepnij(model);
+  zastosujWidocznosc();
+  ostatni = null;
+  opiszSrebrne();
+}
+
+async function wczytajRollup(zrodlo, nazwa) {
+  const grafika = toObraz(zrodlo) || toObraz(nazwa)
+    ? await planszaZObrazu(zrodlo) : await planszaZPdf(zrodlo);
+  grafikaRollupa = grafika.tekstura;
+  nazwaRollupa = nazwa;
+  if (wariant === 'srebrny') await pokazSrebrne();
+}
+
+async function przelaczWariant(nowy) {
+  wariant = nowy;
+  try { localStorage.setItem('wariant', nowy); } catch (e) {}
+  document.body.classList.toggle('wariant-srebrny', nowy === 'srebrny');
+  document.body.classList.toggle('wariant-zloty', nowy === 'zloty');
+  document.querySelectorAll('[data-wariant]').forEach((b) => {
+    b.setAttribute('aria-current', String(b.dataset.wariant === nowy));
+  });
+  if (nowy === 'srebrny') await pokazSrebrne();
+  else await pokaz(USTAWIENIA.plik, USTAWIENIA.plik).catch(() => {});
 }
 
 async function pokazPlik(plik) {
@@ -701,7 +872,27 @@ try {
 }
 
 try {
-  await pokaz(USTAWIENIA.plik, USTAWIENIA.plik);
+  const grafika = await planszaZPdf(USTAWIENIA.rollup);
+  grafikaRollupa = grafika.tekstura;
+  nazwaRollupa = USTAWIENIA.rollup;
+} catch (e) {
+  grafikaRollupa = null;
+}
+
+document.querySelectorAll('[data-wariant]').forEach((b) => {
+  b.addEventListener('click', () => przelaczWariant(b.dataset.wariant));
+});
+document.body.classList.add(wariant === 'srebrny' ? 'wariant-srebrny' : 'wariant-zloty');
+document.querySelectorAll('[data-wariant]').forEach((b) => {
+  b.setAttribute('aria-current', String(b.dataset.wariant === wariant));
+});
+
+if (wariant === 'srebrny') {
+  await pokazSrebrne();
+}
+
+try {
+  if (wariant === 'zloty') await pokaz(USTAWIENIA.plik, USTAWIENIA.plik);
 } catch (e) {
   bladPliku(USTAWIENIA.plik, e && e.name === 'MissingPDFException');
   // ścianka bez grafiki, żeby było widać samą konstrukcję
@@ -727,6 +918,18 @@ wyborLady.addEventListener('change', async () => {
   if (!plik) return;
   try {
     await wczytajLade(toObraz(plik) ? plik : new Uint8Array(await plik.arrayBuffer()), plik.name);
+  } catch (err) {
+    bladPliku(plik.name, false);
+  }
+});
+
+const wyborRollupa = document.getElementById('wyborRollupa');
+document.getElementById('wczytajRollup').addEventListener('click', () => wyborRollupa.click());
+wyborRollupa.addEventListener('change', async () => {
+  const plik = wyborRollupa.files[0];
+  if (!plik) return;
+  try {
+    await wczytajRollup(toObraz(plik) ? plik : new Uint8Array(await plik.arrayBuffer()), plik.name);
   } catch (err) {
     bladPliku(plik.name, false);
   }

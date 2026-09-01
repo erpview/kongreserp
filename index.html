@@ -60,6 +60,17 @@
              text-transform: uppercase; color: var(--rock); }
   h1 { margin: 7px 0 0; font-size: 21px; line-height: 1.15; font-weight: 800; letter-spacing: -.01em; }
 
+  .warianty { display: inline-flex; gap: 2px; margin-top: 12px; padding: 2px;
+              background: var(--stone); border-radius: 8px; }
+  .warianty button { border: 0; background: transparent; cursor: pointer; padding: 6px 14px;
+                     border-radius: 6px; color: var(--rock);
+                     font: 800 11px/1 "Nunito Sans", system-ui, sans-serif; letter-spacing: .04em; }
+  .warianty button[aria-current="true"] { background: #fff; color: var(--night);
+                                          box-shadow: 0 1px 3px rgba(27,33,58,.16); }
+
+  body.wariant-zloty .tylko-srebrny,
+  body.wariant-srebrny .tylko-zloty { display: none !important; }
+
   .dane { margin: 16px 0 0; border-top: 1px solid var(--stone); }
   .dane div { display: flex; justify-content: space-between; gap: 14px;
               padding: 7px 0; border-bottom: 1px solid var(--stone); font-size: 12px; line-height: 1.45; }
@@ -174,35 +185,48 @@
     <div class="jezyki" id="jezyki"></div>
   </div>
   <div class="eyebrow" data-t="nadtytul">Stoisko targowe · wizualizacja 3D</div>
+  <div class="warianty">
+    <button type="button" data-wariant="zloty" aria-current="true" data-t="wariantZloty">Złoty</button>
+    <button type="button" data-wariant="srebrny" aria-current="false" data-t="wariantSrebrny">Srebrny</button>
+  </div>
   <h1 id="tytul">Ścianka z planszy produkcyjnej</h1>
 
   <div class="dane" id="dane"></div>
   <div class="wyposazenie">
     <span class="etykieta" data-t="wyposazenie">Wyposażenie</span>
     <div class="chipy">
-      <button class="chip" data-mebel="lada" aria-pressed="true" data-t="chipLada">Lada</button>
+      <button class="chip tylko-srebrny" data-mebel="rollup" aria-pressed="true" data-t="chipRollup">Rollup</button>
+      <button class="chip tylko-zloty" data-mebel="lada" aria-pressed="true" data-t="chipLada">Lada</button>
       <button class="chip" data-mebel="stolik" aria-pressed="true" data-t="chipStolik">Stolik</button>
-      <button class="chip" data-mebel="hokery" aria-pressed="true" data-t="chipHokery">Hokery</button>
+      <button class="chip tylko-zloty" data-mebel="hokery" aria-pressed="true" data-t="chipHokery">Hokery</button>
     </div>
   </div>
-  <p class="wskazowka" data-t="wskazowka">Meble przestawisz wskaźnikiem — złap ladę, stolik albo hoker i przeciągnij po podłodze stoiska.</p>
+  <p class="wskazowka tylko-zloty" data-t="wskazowka">Meble przestawisz wskaźnikiem — złap ladę, stolik albo hoker i przeciągnij po podłodze stoiska.</p>
+  <p class="wskazowka tylko-srebrny" data-t="wskazowkaSrebrna">Rollup i stolik przestawisz wskaźnikiem — złap i przeciągnij po podłodze stoiska.</p>
   <p class="plik" id="plik" data-t="wczytywanie">Wczytuję planszę…</p>
 
   <div class="pliki">
     <div class="etykieta" data-t="pliki">Pliki</div>
-    <div class="rzad">
+    <div class="rzad tylko-zloty">
       <span data-t="plikScianka">Ścianka</span>
       <button class="maly mocny" id="wczytaj" data-t="wczytajPdf">Wczytaj plik</button>
       <a class="maly" href="szablon-planszy.pdf" download data-t="szablon">Szablon</a>
       <a class="maly cichy" href="szablon-planszy-2000px.png" download>PNG</a>
     </div>
-    <div class="rzad">
+    <div class="rzad tylko-zloty">
       <span data-t="plikLada">Lada</span>
       <button class="maly mocny" id="wczytajLade" data-t="wczytajPdf">Wczytaj plik</button>
       <a class="maly" href="szablon-lady.pdf" download data-t="szablon">Szablon</a>
       <a class="maly cichy" href="szablon-lady-2000px.png" download>PNG</a>
     </div>
+    <div class="rzad tylko-srebrny">
+      <span data-t="plikRollup">Rollup</span>
+      <button class="maly mocny" id="wczytajRollup" data-t="wczytajPdf">Wczytaj plik</button>
+      <a class="maly" href="szablon-rollupa.pdf" download data-t="szablon">Szablon</a>
+      <a class="maly cichy" href="szablon-rollupa-2000px.png" download>PNG</a>
+    </div>
   </div>
+  <input type="file" id="wyborRollupa" accept="application/pdf,image/png,image/jpeg,image/webp">
   <input type="file" id="wybor" accept="application/pdf,image/png,image/jpeg,image/webp">
   <input type="file" id="wyborLady" accept="application/pdf,image/png,image/jpeg,image/webp">
 
@@ -213,14 +237,14 @@
 
   <div class="akcje">
     <button class="przycisk cichy" id="przywroc">
-      <span data-t="przywroc">Ustaw meble od nowa</span> <span class="format" data-t="przywrocFormat">lada · stolik · hokery</span>
+      <span data-t="przywroc">Ustaw meble od nowa</span> <span class="format tylko-zloty" data-t="przywrocFormat">lada · stolik · hokery</span><span class="format tylko-srebrny" data-t="przywrocFormatSrebrny">rollup · stolik</span>
     </button>
-    <button class="przycisk cichy" id="przelacznik" aria-expanded="false">
+    <button class="przycisk cichy tylko-zloty" id="przelacznik" aria-expanded="false">
       <span data-t="instrukcjaTytul">Jak przygotować planszę</span> <span class="strzalka">›</span>
     </button>
   </div>
 
-  <div class="instrukcja" id="instrukcja">
+  <div class="instrukcja tylko-zloty" id="instrukcja">
     <ol>
       <li><b data-t="krok1">Weź szablon</b><a href="szablon-planszy.pdf" download
         data-t="krok1a">Arkusz 1:1</a><span data-t="krok1b"> z ramkami, szczelinami profili,

@@ -4,12 +4,23 @@ Wizualizacja stoiska, w której ścianka i lada są renderowane **z plików
 produkcyjnych PDF**. Wrzucasz plik, robisz `git push`, Netlify publikuje —
 model 3D bierze grafikę wprost z tego pliku, bez żadnego kroku pośredniego.
 
+## Dwa pakiety stoiska
+
+Przełącznik **Złoty / Srebrny** u góry panelu wybiera zestaw; wybór zostaje
+w przeglądarce, można też wejść wprost: `?wariant=srebrny`.
+
+| Pakiet | Powierzchnia | Zabudowa | Pliki |
+| --- | --- | --- | --- |
+| **Złoty** | 300 × 140 cm | ścianka 300 × 250 cm, lada 100 × 50 × 100, 2 hokery, stolik | `plansza.pdf`, `lada.pdf` |
+| **Srebrny** | 150 × 70 cm | rollup 100 × 200 cm, stolik koktajlowy ⌀ 60 × 110 w pokrowcu stretch | `rollup.pdf` |
+
 ## Jak podmienić grafikę
 
 | Element | Plik | Format |
 | --- | --- | --- |
 | Ścianka | `plansza.pdf` | 3060 × 2560 mm (300 × 250 cm + 30 mm spadu) |
 | Lada | `lada.pdf` | 2060 × 1060 mm (bok 500 · front 1000 · bok 500 + spad) |
+| Rollup | `rollup.pdf` | 1060 × 2060 mm (100 × 200 cm + spad), dolne 100 mm chowa kaseta |
 
 ```bash
 git add plansza.pdf && git commit -m "Nowa plansza" && git push

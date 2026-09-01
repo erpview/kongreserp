@@ -7,12 +7,14 @@ konstrukcji zapisanych niżej:
 
     plansza.pdf          granatowa ścianka z logo, punkt wyjścia wizualizacji
     lada.pdf             oklejka lady: bok · front · bok na jednym arkuszu
+    rollup.pdf           grafika rollupa 100 × 200 cm (stoisko srebrne)
     szablon-planszy.pdf  podkład dla grafika: ramki, szczeliny, strefy, linia wzroku
     szablon-lady.pdf     podkład lady: panele, zagięcia, pola zakryte
+    szablon-rollupa.pdf  podkład rollupa: kaseta, strefy, linia wzroku
 
     python3 narzedzia/pliki.py                    # wszystkie cztery
     python3 narzedzia/pliki.py plansza            # tylko wybrany
-    python3 narzedzia/pliki.py --png 2000         # dodatkowo podglądy PNG
+    python3 narzedzia/pliki.py --png 2000         # dodatkowo podglądy PNG (dłuższy bok)
 
 Render idzie przez headless Chrome (`--print-to-pdf`), bo strona i tak renderuje
 PDF-y w przeglądarce — ten sam silnik po obu stronach znaczy, że podgląd wygląda
@@ -53,6 +55,14 @@ LADA = {
     "spad": 30, "bezpieczna": 40,
     "cokol": 60,                     # pas akcentu u dołu, zakryty
     "blat": 40,                      # blat nachodzi na górną krawędź
+}
+
+ROLLUP = {
+    "szer": 1000, "wys": 2000,       # mm, standardowy rollup
+    "spad": 30,
+    "bezpieczna": 50,
+    "kaseta": 100,                   # dolny pas wciągany do kasety — nie widać go
+    "wzrok": 1600,                   # licząc od podłogi, czyli od dołu grafiki
 }
 
 MIN_SCIANKA_MM = 20   # próg czytelności z trzech metrów
@@ -163,6 +173,48 @@ def szablon_planszy() -> str:
     return strona(g["szer"] + 2 * s, g["wys"] + 2 * s, "".join(el))
 
 
+# ---------------------------------------------------------------- rollup
+def rollup() -> str:
+    g = ROLLUP
+    s = g["spad"]
+    szer_logo = g["szer"] - 2 * g["bezpieczna"] - 100
+    wys_logo = szer_logo * 147 / 326
+    x = s + (g["szer"] - szer_logo) / 2
+    # linię wzroku liczymy od podłogi, a rollup stoi na niej dolną krawędzią
+    y = s + g["wys"] - g["wzrok"] - wys_logo / 2
+    return strona(g["szer"] + 2 * s, g["wys"] + 2 * s, logo(szer_logo, x, y))
+
+
+def szablon_rollupa() -> str:
+    g = ROLLUP
+    s, m = g["spad"], g["bezpieczna"]
+    el = [prostokat(s, s, g["szer"], g["wys"], "outline:1mm solid rgba(255,255,255,.45)")]
+    el.append(prostokat(s + m, s + m, g["szer"] - 2 * m, g["wys"] - 2 * m,
+                        f"outline:1mm dashed {AKCENT}"))
+    el.append(kreskowanie(s, s + g["wys"] - g["kaseta"], g["szer"], g["kaseta"],
+                          f'kaseta {g["kaseta"]} mm — pole zakryte', 10))
+
+    y_wzroku = s + g["wys"] - g["wzrok"]
+    el.append(prostokat(s, y_wzroku, g["szer"], 1, f"background:{AKCENT}"))
+    el.append(napis(s + m + 6, y_wzroku - 26, f'linia wzroku {g["wzrok"] / 10:.0f} cm', 10, AKCENT))
+    el.append(napis(s + m + 6, s + m + 6, f'Rollup · {g["szer"]} × {g["wys"]} mm', 10))
+
+    el.append(legenda(s + m, s + g["wys"] / 2 - 120, g["szer"] - 2 * m,
+                      f'Szablon rollupa {g["szer"] / 10:.0f} × {g["wys"] / 10:.0f} cm', [
+        ("Arkusz", [
+            f'{g["szer"]} × {g["wys"]} mm w skali 1:1, spad {s} mm',
+            f'strefa bezpieczna {m} mm od każdej krawędzi',
+            f'dolne {g["kaseta"]} mm wciąga kaseta — nic tam nie umieszczamy',
+        ]),
+        ("Zasady", [
+            f"minimum {MIN_SCIANKA_MM} mm wysokości pisma — rollup czyta się z trzech metrów",
+            f'najważniejsze na linii wzroku {g["wzrok"] / 10:.0f} cm nad podłogą',
+            "górna trzecia część pracuje na odległość, dolna na rozmowę z bliska",
+        ]),
+    ], rozmiar_tytulu=26, rozmiar_tekstu=11))
+    return strona(g["szer"] + 2 * s, g["wys"] + 2 * s, "".join(el))
+
+
 # ---------------------------------------------------------------- lada
 def lada() -> str:
     g = LADA
@@ -243,8 +295,17 @@ def legenda(x: float, y: float, szerokosc: float, tytul: str, sekcje: list,
 PLIKI = {
     "plansza": ("plansza.pdf", plansza),
     "lada": ("lada.pdf", lada),
+    "rollup": ("rollup.pdf", rollup),
     "szablon-planszy": ("szablon-planszy.pdf", szablon_planszy),
     "szablon-lady": ("szablon-lady.pdf", szablon_lady),
+    "szablon-rollupa": ("szablon-rollupa.pdf", szablon_rollupa),
+}
+
+# Który zestaw wymiarów opisuje dany plik — potrzebne przy zrzucie PNG,
+# bo tam arkusz renderujemy bez spadu.
+KONSTRUKCJA = {
+    "plansza": SCIANKA, "szablon-planszy": SCIANKA,
+    "rollup": ROLLUP, "szablon-rollupa": ROLLUP,
 }
 
 
@@ -256,16 +317,19 @@ def bez_spadu():
     zawierał spad, proporcje obrazu przestałyby być proporcjami ścianki
     i makieta kłamałaby o jej kształcie.
     """
-    stare = SCIANKA["spad"], LADA["spad"]
-    SCIANKA["spad"], LADA["spad"] = 0, 0
+    stare = SCIANKA["spad"], LADA["spad"], ROLLUP["spad"]
+    SCIANKA["spad"], LADA["spad"], ROLLUP["spad"] = 0, 0, 0
     try:
         yield
     finally:
-        SCIANKA["spad"], LADA["spad"] = stare
+        SCIANKA["spad"], LADA["spad"], ROLLUP["spad"] = stare
 
 
-def zbuduj_png(nazwa: str, szerokosc_px: int) -> tuple[Path, int, int]:
+def zbuduj_png(nazwa: str, dluzszy_bok_px: int) -> tuple[Path, int, int]:
     """Ten sam arkusz co w PDF, tylko w pikselach i bez spadu.
+
+    Rozmiar podaje się jako dłuższy bok — przy rollupie stojącym w pionie
+    „szerokość 2000 px" znaczyłaby plik dwa razy cięższy niż potrzeba.
 
     Chrome nie schodzi ze skalą zrzutu poniżej 0,5, więc obraz wychodzi
     większy niż docelowy — sprowadza go potem `sips`, przy okazji pilnując
@@ -273,16 +337,16 @@ def zbuduj_png(nazwa: str, szerokosc_px: int) -> tuple[Path, int, int]:
     """
     px_na_mm = 96 / 25.4
     plik, zrob = PLIKI[nazwa]
-    wynik = KORZEN / f"{Path(plik).stem}-{szerokosc_px}px.png"
+    wynik = KORZEN / f"{Path(plik).stem}-{dluzszy_bok_px}px.png"
     with bez_spadu():
         html_tresc = zrob()
-        szer_mm = SCIANKA["szer"] if "planszy" in nazwa or nazwa == "plansza" \
-            else LADA["bok"] * 2 + LADA["front"]
-        wys_mm = SCIANKA["wys"] if "planszy" in nazwa or nazwa == "plansza" else LADA["wys"]
+        konstrukcja = KONSTRUKCJA.get(nazwa)
+        szer_mm = konstrukcja["szer"] if konstrukcja else LADA["bok"] * 2 + LADA["front"]
+        wys_mm = konstrukcja["wys"] if konstrukcja else LADA["wys"]
     with tempfile.TemporaryDirectory() as tmp:
         html = Path(tmp) / f"{nazwa}.html"
         html.write_text(html_tresc, encoding="utf-8")
-        skala = max(0.5, szerokosc_px / (szer_mm * px_na_mm))
+        skala = max(0.5, dluzszy_bok_px / (max(szer_mm, wys_mm) * px_na_mm))
         subprocess.run(
             [CHROME, "--headless", "--disable-gpu", "--no-sandbox",
              "--allow-file-access-from-files", "--virtual-time-budget=8000", "--hide-scrollbars",
@@ -291,7 +355,7 @@ def zbuduj_png(nazwa: str, szerokosc_px: int) -> tuple[Path, int, int]:
              f"--screenshot={wynik}", html.as_uri()],
             check=True, capture_output=True,
         )
-    subprocess.run(["sips", "-s", "format", "png", "-Z", str(szerokosc_px),
+    subprocess.run(["sips", "-s", "format", "png", "-Z", str(dluzszy_bok_px),
                     str(wynik), "--out", str(wynik)], check=True, capture_output=True)
     wymiary = subprocess.run(["sips", "-g", "pixelWidth", "-g", "pixelHeight", str(wynik)],
                              capture_output=True, text=True).stdout.split()
@@ -317,8 +381,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Generator plików stoiska KongresERP")
     ap.add_argument("pliki", nargs="*", default=list(PLIKI),
                     help=f"co zbudować: {', '.join(PLIKI)} (domyślnie wszystkie)")
-    ap.add_argument("--png", type=int, nargs="?", const=2000, metavar="SZEROKOŚĆ",
-                    help="dodatkowo podgląd PNG o zadanej szerokości w pikselach")
+    ap.add_argument("--png", type=int, nargs="?", const=2000, metavar="PIKSELE",
+                    help="dodatkowo podgląd PNG o zadanym dłuższym boku w pikselach")
     args = ap.parse_args()
 
     nieznane = [n for n in args.pliki if n not in PLIKI]
