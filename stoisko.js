@@ -120,6 +120,77 @@ function wykryjSkale(szerokoscPliku, wzorzec = ARKUSZ_WZORCOWY) {
   return najlepsza;
 }
 
+
+/** Grafika z obrazu — PNG, JPG albo WebP zamiast PDF-a.
+ *
+ *  Obraz nie niesie milimetrów ani spadu, więc czytamy z niego tylko
+ *  proporcje: szerokość ścianki zostaje ta sama co dotąd, wysokość wychodzi
+ *  z kształtu pliku. Zakładamy pole netto — kto eksportuje makietę do PNG,
+ *  ten spadu w niej nie zostawia.
+ */
+async function plotnoZObrazu(zrodlo) {
+  const url = typeof zrodlo === 'string' ? zrodlo : URL.createObjectURL(zrodlo);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const plotno = document.createElement('canvas');
+    plotno.width = img.naturalWidth;
+    plotno.height = img.naturalHeight;
+    plotno.getContext('2d').drawImage(img, 0, 0);
+    return plotno;
+  } finally {
+    if (typeof zrodlo !== 'string') URL.revokeObjectURL(url);
+  }
+}
+
+function teksturaZPlotna(plotno) {
+  const tekstura = new THREE.CanvasTexture(plotno);
+  tekstura.colorSpace = THREE.SRGBColorSpace;
+  tekstura.anisotropy = 8;
+  return tekstura;
+}
+
+async function planszaZObrazu(zrodlo) {
+  const plotno = await plotnoZObrazu(zrodlo);
+  const szer = (ostatni && ostatni.plansza && ostatni.plansza.szer) || 3000;
+  const wys = Math.round((szer * plotno.height) / plotno.width);
+  return {
+    tekstura: teksturaZPlotna(plotno), szer, wys,
+    arkuszSzer: szer, arkuszWys: wys, spad: 0, skalaPliku: 1,
+    plikSzer: szer, plikWys: wys,
+    obrazPx: [plotno.width, plotno.height],
+  };
+}
+
+async function ladaZObrazu(zrodlo, udzialy) {
+  return tnijPanele(await plotnoZObrazu(zrodlo), udzialy);
+}
+
+/** Dzieli rozwinięcie na panele w proporcjach lady: bok · front · bok. */
+function tnijPanele(plotno, udzialy) {
+  const suma = udzialy.reduce((a, b) => a + b, 0);
+  let x = 0;
+  const panele = udzialy.map((udzial) => {
+    const szerokosc = Math.round((udzial / suma) * plotno.width);
+    const kawalek = document.createElement('canvas');
+    kawalek.width = szerokosc;
+    kawalek.height = plotno.height;
+    kawalek.getContext('2d').drawImage(plotno, x, 0, szerokosc, plotno.height,
+                                       0, 0, szerokosc, plotno.height);
+    x += szerokosc;
+    return teksturaZPlotna(kawalek);
+  });
+  return { lewy: panele[0], front: panele[1], prawy: panele[2] };
+}
+
+/** Czy plik albo adres jest obrazem, a nie PDF-em. */
+function toObraz(co) {
+  return typeof co === 'string'
+    ? /\.(png|jpe?g|webp)(\?|$)/i.test(co)
+    : (co && typeof co.type === 'string' && co.type.startsWith('image/'));
+}
+
 /* ---------------------------------------------------------------- lada */
 
 /** Grafika lady z rozwinięcia: bok lewy · front · bok prawy na jednym arkuszu.
@@ -171,7 +242,7 @@ async function ladaZPdf(zrodlo, udzialy) {
     tekstura.anisotropy = 8;
     return tekstura;
   });
-  return { lewy: panele[0], front: panele[1], prawy: panele[2] };
+  return tnijPanele(plotno, udzialy);
 }
 
 async function wczytajPrzebarwiony(src, kolor) {
@@ -492,7 +563,8 @@ let grafikaLady = zapasowaLada;
 const UDZIALY_LADY = [0.5, 1.0, 0.5];
 
 async function wczytajLade(zrodlo, nazwa) {
-  grafikaLady = await ladaZPdf(zrodlo, UDZIALY_LADY);
+  grafikaLady = toObraz(zrodlo) || toObraz(nazwa)
+    ? await ladaZObrazu(zrodlo, UDZIALY_LADY) : await ladaZPdf(zrodlo, UDZIALY_LADY);
   nazwaLady = nazwa;
   if (ostatni) await pokaz(ostatni.zrodlo, ostatni.nazwa);
 }
@@ -554,7 +626,9 @@ function opisz(plansza, model, nazwa, zrodlo) {
   ].map(([etykieta, wartosc]) => `<div><span>${etykieta}</span><b>${wartosc}</b></div>`).join('');
   elPlik.classList.remove('blad');
   elPlik.innerHTML = teksty.plansza(nazwa) + '<br>' +
-    teksty.arkusz(cm(plansza.arkuszSzer), cm(plansza.arkuszWys), plansza.spad) +
+    (plansza.obrazPx
+      ? teksty.obraz(plansza.obrazPx[0], plansza.obrazPx[1])
+      : teksty.arkusz(cm(plansza.arkuszSzer), cm(plansza.arkuszWys), plansza.spad)) +
     (plansza.skalaPliku === 1 ? ''
       : '<br>' + teksty.skala(plansza.skalaPliku,
           Math.round(plansza.plikSzer), Math.round(plansza.plikWys))) +
@@ -586,7 +660,8 @@ function zastosujWidocznosc() {
 }
 
 async function pokaz(zrodlo, nazwa) {
-  const plansza = await planszaZPdf(zrodlo);
+  const plansza = toObraz(zrodlo) || toObraz(nazwa)
+    ? await planszaZObrazu(zrodlo) : await planszaZPdf(zrodlo);
   model = stoisko(plansza, grafikaLady);
   stage.setObject(model.grupa);
   dociagnijGlebie();
@@ -597,7 +672,7 @@ async function pokaz(zrodlo, nazwa) {
 
 async function pokazPlik(plik) {
   try {
-    await pokaz(new Uint8Array(await plik.arrayBuffer()), plik.name);
+    await pokaz(toObraz(plik) ? plik : new Uint8Array(await plik.arrayBuffer()), plik.name);
   } catch (err) {
     bladPliku(plik.name, false);
   }
@@ -617,7 +692,9 @@ zastosujJezyk();
 
 // Oklejka lady jest opcjonalna: bez pliku zostaje front z logotypem.
 try {
-  grafikaLady = await ladaZPdf(USTAWIENIA.lada, UDZIALY_LADY);
+  grafikaLady = toObraz(USTAWIENIA.lada)
+    ? await ladaZObrazu(USTAWIENIA.lada, UDZIALY_LADY)
+    : await ladaZPdf(USTAWIENIA.lada, UDZIALY_LADY);
   nazwaLady = USTAWIENIA.lada;
 } catch (e) {
   grafikaLady = zapasowaLada;
@@ -649,7 +726,7 @@ wyborLady.addEventListener('change', async () => {
   const plik = wyborLady.files[0];
   if (!plik) return;
   try {
-    await wczytajLade(new Uint8Array(await plik.arrayBuffer()), plik.name);
+    await wczytajLade(toObraz(plik) ? plik : new Uint8Array(await plik.arrayBuffer()), plik.name);
   } catch (err) {
     bladPliku(plik.name, false);
   }
@@ -681,6 +758,7 @@ document.addEventListener('dragleave', (e) => { if (!e.relatedTarget) koniecPrze
 document.addEventListener('drop', async (e) => {
   e.preventDefault();
   koniecPrzeciagania();
-  const plik = [...(e.dataTransfer?.files || [])].find((f) => f.type === 'application/pdf');
+  const plik = [...(e.dataTransfer?.files || [])]
+    .find((f) => f.type === 'application/pdf' || toObraz(f));
   if (plik) await pokazPlik(plik);
 });

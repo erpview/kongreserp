@@ -19,6 +19,12 @@ Do szybkiego podglądu bez wdrożenia: **Pliki → Wczytaj PDF** albo przeciągn
 PDF-a na stronę. Taki podgląd zostaje w przeglądarce — plik nigdzie nie jest
 wysyłany, więc wersję roboczą można pokazać na spotkaniu bez publikowania.
 
+**Można wgrać też obraz.** Oprócz PDF-a przyciski „Wczytaj plik" i upuszczanie
+przyjmują PNG, JPG i WebP. Obraz nie niesie milimetrów ani spadu, więc czytamy
+z niego proporcje: szerokość ścianki zostaje ta sama, wysokość wychodzi
+z kształtu pliku, a całość traktujemy jako pole netto. Do szybkiego podglądu
+makiety — do druku i tak idzie PDF.
+
 **Skala rozpoznaje się sama.** Plik oddany w 1:10 strona przelicza na 1:1
 i pisze o tym w panelu. Wymuszenie: `?skala=1`.
 
