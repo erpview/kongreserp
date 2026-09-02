@@ -56,6 +56,11 @@ const SKALE = [1, 2, 2.5, 4, 5, 10, 20, 25, 50, 100];
 const ARKUSZ_WZORCOWY = 3060;   // mm — ścianka 300 cm ze spadem, punkt odniesienia
 const ARKUSZ_LADY = 2060;       // mm — rozwinięcie lady 100 × 50 × 100 ze spadem
 const NAJMNIEJSZA_SCIANKA = 1000;  // mm — poniżej tego żadna ścianka nie istnieje
+const SCIANKA_WZORCOWA = 3000;     // mm — pole netto ścianki, bez spadu
+// Arkusz ze spadem ma proporcję 3060:2560, samo pole netto 3000:2500. Różnica
+// to niecałe pół procenta, ale wystarcza, żeby rozpoznać plik oddany bez spadu.
+const PROPORCJA_NETTO = 3000 / 2500;
+const TOLERANCJA_PROPORCJI = 0.002;
 
 /* Strona osadzona w ramce pokazuje samo stoisko i przycisk zamówienia —
    wczytywanie własnych plików i instrukcja dla grafika zostają w wersji
@@ -83,10 +88,15 @@ async function planszaZPdf(zrodlo) {
   const arkusz = strona.getViewport({ scale: 1 });
   // wymiary tak, jak stoją w pliku, oraz to samo przeliczone na skalę 1:1
   const plikSzer = arkusz.width * PT_NA_MM, plikWys = arkusz.height * PT_NA_MM;
-  const skalaPliku = USTAWIENIA.skala ?? wykryjSkale(plikSzer);
+  const bezSpadu = Math.abs(plikSzer / plikWys - PROPORCJA_NETTO) < TOLERANCJA_PROPORCJI;
+  const skalaPliku = USTAWIENIA.skala
+    ?? (bezSpadu ? (plikSzer >= NAJMNIEJSZA_SCIANKA ? 1 : SCIANKA_WZORCOWA / plikSzer)
+                 : wykryjSkale(plikSzer));
   const arkuszSzer = plikSzer * skalaPliku, arkuszWys = plikWys * skalaPliku;
 
-  const spad = Math.min(USTAWIENIA.spad, arkuszSzer / 4, arkuszWys / 4);
+  // Plik o proporcjach samego pola netto oddano bez spadu — odcinanie 30 mm
+  // zjadłoby wtedy grafikę i zmniejszyło ściankę o kilka centymetrów.
+  const spad = bezSpadu ? 0 : Math.min(USTAWIENIA.spad, arkuszSzer / 4, arkuszWys / 4);
   const szer = arkuszSzer - 2 * spad, wys = arkuszWys - 2 * spad;
 
   // Kadrujemy w jednostkach pliku, bo tam żyje strona PDF-a; skala tak dobrana,
@@ -752,7 +762,9 @@ function opisz(plansza, model, nazwa, zrodlo) {
   elPlik.innerHTML = teksty.plansza(nazwa) + '<br>' +
     (plansza.obrazPx
       ? teksty.obraz(plansza.obrazPx[0], plansza.obrazPx[1])
-      : teksty.arkusz(cm(plansza.arkuszSzer), cm(plansza.arkuszWys), plansza.spad)) +
+      : plansza.spad
+        ? teksty.arkusz(cm(plansza.arkuszSzer), cm(plansza.arkuszWys), plansza.spad)
+        : teksty.arkuszBezSpadu(cm(plansza.arkuszSzer), cm(plansza.arkuszWys))) +
     (plansza.skalaPliku === 1 ? ''
       : '<br>' + teksty.skala(plansza.skalaPliku,
           Math.round(plansza.plikSzer), Math.round(plansza.plikWys))) +
